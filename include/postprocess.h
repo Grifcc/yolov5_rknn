@@ -7,8 +7,8 @@
 #define OBJ_NAME_MAX_SIZE 16
 #define OBJ_NUMB_MAX_SIZE 64
 #define OBJ_CLASS_NUM     10
-#define NMS_THRESH        0.5
-#define BOX_THRESH        0.65
+#define IOU_THRESH        0.65
+#define CONF_THRESH        0.5
 #define PROP_BOX_SIZE     (5+OBJ_CLASS_NUM)
 
 typedef struct _BOX_RECT

@@ -179,8 +179,8 @@ int main(int argc, char **argv)
   int img_width = 0;
   int img_height = 0;
   int img_channel = 0;
-  const float nms_threshold = NMS_THRESH;
-  const float box_conf_threshold = BOX_THRESH;
+  const float iou_threshold = IOU_THRESH;
+  const float conf_threshold = CONF_THRESH;
   struct timeval start_time, stop_time;
   int ret;
 
@@ -203,7 +203,7 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  printf("post process config: box_conf_threshold = %.2f, nms_threshold = %.2f\n", box_conf_threshold, nms_threshold);
+  printf("post process config: conf_threshold = %.2f, iou_threshold = %.2f\n", conf_threshold, iou_threshold);
 
   model_name = (char *)argv[1];
   char *image_name = argv[2];
@@ -383,7 +383,7 @@ int main(int argc, char **argv)
   }
 
   post_process((int8_t *)outputs[0].buf, (int8_t *)outputs[1].buf, (int8_t *)outputs[2].buf, height, width,
-               box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
+               conf_threshold, iou_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
 
   printf("post_process done\n");
   // Draw Objects
