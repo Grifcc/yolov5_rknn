@@ -18,9 +18,9 @@
 // static char *labels[OBJ_CLASS_NUM]={"pedestrian","people","bicycle","car","van","truck","tricycle","awning-tricycle","bus","motor"};
 static char *labels[OBJ_CLASS_NUM];
 
-const int anchor0[6] = {3,4,  4,9,  8,7};
-const int anchor1[6] = {8,14,  16,9,  14,18};
-const int anchor2[6] = {31,17,  25,33,  58,42};
+const int anchor0[6] = {3, 4, 4, 9, 8, 7};
+const int anchor1[6] = {8, 14, 16, 9, 14, 18};
+const int anchor2[6] = {31, 17, 25, 33, 58, 42};
 
 inline static int clamp(float val, int min, int max) { return val > min ? (val < max ? val : max) : min; }
 
@@ -112,7 +112,7 @@ static int nms(int validCount, std::vector<float> &outputLocations, std::vector<
       continue;
     }
     int n = order[i];
-    if(classIds[n] != filterId)
+    if (classIds[n] != filterId)
     {
       continue;
     }
@@ -123,7 +123,7 @@ static int nms(int validCount, std::vector<float> &outputLocations, std::vector<
       {
         continue;
       }
-      if(classIds[m] != filterId)
+      if (classIds[m] != filterId)
       {
         continue;
       }
@@ -222,6 +222,23 @@ static int process(int8_t *input, int *anchor, int grid_h, int grid_w, int heigh
         {
           int offset = (PROP_BOX_SIZE * a) * grid_len + i * grid_w + j;
           int8_t *in_ptr = input + offset;
+
+          int8_t maxClassProbs = in_ptr[5 * grid_len];
+          int maxClassId = 0;
+          for (int k = 1; k < OBJ_CLASS_NUM; ++k)
+          {
+            int8_t prob = in_ptr[(5 + k) * grid_len];
+            if (prob > maxClassProbs)
+            {
+              maxClassId = k;
+              maxClassProbs = prob;
+            }
+          }
+          float prob = sigmoid(deqnt_affine_to_f32(box_confidence, zp, scale)) * sigmoid(deqnt_affine_to_f32(maxClassProbs, zp, scale));
+          if (prob < threshold)
+          {
+            continue;
+          }
           float box_x = sigmoid(deqnt_affine_to_f32(*in_ptr, zp, scale)) * 2.0 - 0.5;
           float box_y = sigmoid(deqnt_affine_to_f32(in_ptr[grid_len], zp, scale)) * 2.0 - 0.5;
           float box_w = sigmoid(deqnt_affine_to_f32(in_ptr[2 * grid_len], zp, scale)) * 2.0;
@@ -237,18 +254,7 @@ static int process(int8_t *input, int *anchor, int grid_h, int grid_w, int heigh
           boxes.push_back(box_w);
           boxes.push_back(box_h);
 
-          int8_t maxClassProbs = in_ptr[5 * grid_len];
-          int maxClassId = 0;
-          for (int k = 1; k < OBJ_CLASS_NUM; ++k)
-          {
-            int8_t prob = in_ptr[(5 + k) * grid_len];
-            if (prob > maxClassProbs)
-            {
-              maxClassId = k;
-              maxClassProbs = prob;
-            }
-          }
-          objProbs.push_back(sigmoid(deqnt_affine_to_f32(box_confidence, zp, scale)));
+          objProbs.push_back(prob);
           classId.push_back(maxClassId);
           validCount++;
         }
@@ -259,7 +265,7 @@ static int process(int8_t *input, int *anchor, int grid_h, int grid_w, int heigh
 }
 
 int post_process(int8_t *input0, int8_t *input1, int8_t *input2, int model_in_h, int model_in_w, float conf_threshold,
-                 float nms_threshold, float scale_w, float scale_h, std::vector<int32_t> &qnt_zps,
+                 float iou_threshold, float scale_w, float scale_h, std::vector<int32_t> &qnt_zps,
                  std::vector<float> &qnt_scales, detect_result_group_t *group)
 {
   static int init = -1;
@@ -319,7 +325,6 @@ int post_process(int8_t *input0, int8_t *input1, int8_t *input2, int model_in_h,
   }
   file << ss.str();
   file.close();
-  
 
   int validCount = validCount0 + validCount1 + validCount2;
   // no object detect
@@ -340,7 +345,7 @@ int post_process(int8_t *input0, int8_t *input1, int8_t *input2, int model_in_h,
 
   for (auto c : class_set)
   {
-    nms(validCount, filterBoxes, classId, indexArray, c, nms_threshold);
+    nms(validCount, filterBoxes, classId, indexArray, c, iou_threshold);
   }
 
   int last_count = 0;
@@ -365,7 +370,7 @@ int post_process(int8_t *input0, int8_t *input1, int8_t *input2, int model_in_h,
     // group->results[last_count].box.top = (int)(clamp(y1, 0, model_in_h) / scale_h);
     // group->results[last_count].box.right = (int)(clamp(x2, 0, model_in_w) / scale_w);
     // group->results[last_count].box.bottom = (int)(clamp(y2, 0, model_in_h) / scale_h);
-    
+
     group->results[last_count].box.x1 = (int)x1;
     group->results[last_count].box.y1 = (int)y1;
     group->results[last_count].box.x2 = (int)x2;
