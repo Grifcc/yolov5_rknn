@@ -1,0 +1,12 @@
+.vscode
+*.onnx
+*.rknn
+dataset
+build
+install
+CMakeCache*
+install*
+Makefile
+*.log
+*.cmake
+CMakeFiles
